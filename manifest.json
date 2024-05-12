@@ -1,0 +1,22 @@
+{
+    "name": "Hello Extensions",
+    "description": "Base Level Extension",
+    "version": "1.0",
+    "manifest_version": 3,
+    "permissions": [
+        "webRequest",
+        "storage",
+        "tabs",
+        "nativeMessaging"
+    ],
+    "host_permissions": [
+        "*://*/*"
+    ],
+    "background" : {
+        "service_worker" : "background/test.js"
+    },
+    "action" : {
+        "default_popup" : "popup/index.html"
+    },
+    "options_page" : "option/index.html"
+  }
