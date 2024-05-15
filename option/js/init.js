@@ -36,17 +36,31 @@ const isDeepEqual = (object1, object2) => {
 
 const isObject = (object) => {
     return object != null && typeof object === "object";
-  };
+};
 
 let prev_data = {};
 
 setInterval(() => {
-    chrome.runtime.sendMessage({data: "Your message data"}, function(response) {
-        console.log(response["data"]);
-        if( !isDeepEqual(prev_data, response["data"])) {
-            prev_data = response["data"];
-            // console.log("client: send hi", response["data"]["example.com"]["open_api"]["data"]);
-            editor.specActions.updateSpec(JSON.stringify(response["data"]["example.com"]["open_api"]["data"], null, 2));
+    chrome.storage.local.get("result", (result) => {
+        console.log("check 1, ", result)
+        if(!("result" in result)) {
+            return;
         }
-    });
-}, 1000)
+
+        console.log("check 2")
+        console.log(!isDeepEqual(prev_data, result["result"]["example.com"]))
+        if( !isDeepEqual(prev_data, result["result"]["example.com"])) {
+            console.log("check 2")
+            prev_data = result["result"]["example.com"]
+            editor.specActions.updateSpec(JSON.stringify(result["result"]["example.com"]["open_api"]["data"], null, 2));
+        }
+    })
+    // chrome.runtime.sendMessage({data: "Your message data"}, function(response) {
+    //     console.log(response["data"]);
+    //     if( !isDeepEqual(prev_data, response["data"])) {
+    //         prev_data = response["data"];
+    //         // console.log("client: send hi", response["data"]["example.com"]["open_api"]["data"]);
+    //         editor.specActions.updateSpec(JSON.stringify(response["data"]["example.com"]["open_api"]["data"], null, 2));
+    //     }
+    // });
+}, 2000)

@@ -1,12 +1,62 @@
-/*
-    호스트 등록 될 때, HostInfo 클래스 선언해서 로깅
-*/
+// dev, 초기화
+// chrome.storage.local.set({"result": {}})
 
 
-const host_info_list = {};
+let host_info_list = {};
+let load_check = 0;
+
+const init_data = new Promise((resolve, reject) => {
+    console.log("init host_info_list")
+
+    // init host_info_list
+    chrome.storage.local.get("result", (result) => {
+        if("result" in result) {
+            resolve(result["result"])
+        }
+        else {
+            resolve({})
+        }
+    })
+}).then((result) => {
+    for(let host in result) {
+        host_info_list[host] = new HostInfo(host);
+        host_info_list[host].open_api.data = result[host].open_api.data;
+    }
+    load_check = 1;
+})
+
+// TODO 아래 코드 리팩토링 (host listener 합치기 ㅇㅇ)
+const init_listener = (() => {
+    console.log("init listener")
+    chrome.storage.local.get("host", (host) => {
+        console.log(host)
+        const url_pattern = [];
+
+        if(!("host" in host)){
+            return;
+        }
+
+        for(let h of host["host"]) {
+            console.log("new host: ", h)
+            url_pattern.push(`*://*.${h}/*`)
+        }
+
+        if(url_pattern.length != 0){
+            console.log("remove event listener")
+            // onBeforeRequest
+            chrome.webRequest.onBeforeRequest.removeListener(packetMonitor);
+            console.log("add event listener: ", url_pattern)
+            chrome.webRequest.onBeforeRequest.addListener(packetMonitor, {urls : url_pattern, types : ["main_frame", "sub_frame", "xmlhttprequest"]}, ["requestBody"])
+        }
+    })
+})()
 
 
 function packetMonitor(details) {
+    while(!load_check){
+        console.log("load checking....")
+    }
+
     const current_host = new URL(details.url).host;
 
     let result = "";
@@ -22,6 +72,8 @@ function packetMonitor(details) {
     }
     
     host_info_list[result].open_api.add(details)
+    console.log("insert!!")
+    chrome.storage.local.set({"result" : host_info_list})
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -34,6 +86,10 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     const url_pattern = [];
 
     for (let [key, { oldValue, newValue }] of Object.entries(changes)) {
+        if(key != "host") {
+            continue
+        }
+
         if(newValue == undefined) {
             continue
         }
@@ -43,23 +99,21 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
             url_pattern.push(`*://*.${host}/*`)
         }
     }
-
-    console.log("remove event listener")
-    // onBeforeRequest
-    chrome.webRequest.onBeforeRequest.removeListener(packetMonitor);
-
     if(url_pattern.length != 0){
+        console.log("remove event listener")
+        // onBeforeRequest
+        chrome.webRequest.onBeforeRequest.removeListener(packetMonitor);
         console.log("add event listener: ", url_pattern)
         chrome.webRequest.onBeforeRequest.addListener(packetMonitor, {urls : url_pattern, types : ["main_frame", "sub_frame", "xmlhttprequest"]}, ["requestBody"])
     }
 });
 
-chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
-    // console.log("server: client hi", message);
-    // 메시지를 받은 후 추가 작업 수행
+// chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+//     // console.log("server: client hi", message);
+//     // 메시지를 받은 후 추가 작업 수행
 
-    sendResponse({data: host_info_list});
-});
+//     sendResponse({data: host_info_list});
+// });
 
 
 class HostInfo {
